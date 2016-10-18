@@ -22,7 +22,7 @@ val extensionNumOfEmployee: EmployeeId => ExtensionNum =
 ```
 This approach is obviously more concise with less variable to care about and easier to read. However, we often times found ourself having to go back to delegating functions. This post is about how functional programming libaries like cats and generic programming libraries like shapeless can help us avoid delegating functions with more advanced function combination techniques. We are going to start with the easier cases and gradually move towards more sophisticated cases. 
 
-## Function with multiple parameters
+## Combine functions with multiple parameters
 
 In our previous example, the second function takes as parameter the output of the first function. Here is another scenario. 
 Suppose we have two functions
@@ -43,16 +43,43 @@ import cats.implicits._
 val budgetPerEmployee: DepartmentId => Double = 
   (budget, numOfEmployees) map2 divide
 ```
-We can do this because functions forms `ApplicativeFunctor`s and `ApplicativeFunctor`s support such product composition. Here we construct a function combinator by composing functions as `ApplicativeFunctor`s. We are taking advantage of the fact that Cats provides `Functor` and `Cartesian` instances (a different form of `ApplicativeFunctor`) for functions as well as a simple composition syntax as seen above. 
-
-
-## Combine function using Monad and Applicative
+We can do this because functions forms `ApplicativeFunctor`s and `ApplicativeFunctor`s support such product composition. Here we construct a function combinator by composing functions as `ApplicativeFunctor`s. We are taking advantage of the fact that Cats provides `Functor` and `Cartesian` instances (a different form of `ApplicativeFunctor`) for `Function1` with input type fixed.  
 
 ## Combine functions with effects
 
-### Async
+Now what if our functions is asynchrnous? Or what if our functions don't return the result directly, rather, they return results in some context, such as a `Future` or `Option`. For example:
+```Scala
+val departmentOf: EmployeeId => Future[DepartmentId] 
+val extensionNumOf: DepartmentId => Future[ExtensionNumb] 
+```
+We cannot call `departmentOf andThen extensionNumOf`, nor can we use the `ApplicativeFunction` product composition metioned above. This is where `Kleisli` comes to rescue. `Kleisli` is a class that wraps a `A => F[B]` and, in some sense, let us treat it as a `A => B`.
+```Scala
+case class Kleisli[F[_], A, B](run: A => F[B])
+```
+For example, now we can chain the two async functions above by wrapping them to `Kleisli` first. 
+```Scala 
+val extensionOfEmployee: Kleisli[Future, EmployeeId, ExtensionNum] =
+  Kleisli(departmentOf) andThen Kleisli(extensionNumOf)
+  
+extensionOfEmployee.run(employeeId) //returns Future[ExtensionNum]
+```
+`Kleisli` also forms `Monad` which is `ApplicativeFunctor` as well. So we can use the same `ApplicativeFunctor` composition mentioned above. 
+```Scala 
+val budget: DepartmentId => Future[Double] 
+val numOfEmployees: DepartmentId => Future[Int] 
+val divide: (Double, Int) => Future[Double]
 
-### Error handling
+val budgetPerEmployee: Kleisli[Future, DepartmentId, Double]
+  (Kleisli(budget), Kleisli(numOfEmployees)) map2 Kleisli(divide)  
+```
+
+### Combine functions with nested effects
+
+Now suppose, our functions also uses `Either` for error handling. 
+```Scala
+val extensionNumOf: DepartmentId => Future[Eiter[MyError, ExtensionNum]]
+```
+The function now returns a `Future` of `Either` a `MyError` or a `ExtensionNum`. `Kleisli` alone won't be able to handle it. But cats provides a `Nested` data structure to solve this problem. 
 
 ## Combine functions with heterogeneous arguments
 
