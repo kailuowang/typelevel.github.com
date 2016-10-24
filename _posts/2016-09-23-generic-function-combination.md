@@ -78,8 +78,30 @@ val budgetPerEmployee: Kleisli[Future, DepartmentId, Double]
 Now suppose, our functions also uses `Either` for error handling. 
 ```Scala
 val extensionNumOf: DepartmentId => Future[Eiter[MyError, ExtensionNum]]
+val departmentOf: EmployeeId => Future[Either[MyError, DepartmentId]]
 ```
-The function now returns a `Future` of `Either` a `MyError` or a `ExtensionNum`. `Kleisli` alone won't be able to handle it. But cats provides a `Nested` data structure to solve this problem. 
+The function now returns a `Future` of `Either` a `MyError` or a `ExtensionNum`. `Kleisli` alone won't be able to handle it. This is where MonadTransformer (or `Nested` in some case) can help. For `Either` cats provides a `EitherT` wraps a `F[Either[A, B]] ` so that it can be treated as a `Monad` containting `B`, as long as `F` forms a `Monad`. For example, take our `extensionNumOf` function, we can make it a function that returns a `EitherT` 
+```Scala
+val extensionNumOf1: DepartmentId => EitherT[Future, MyError, ExtensionNum] = extensionNumOf andThen EitherT
+```
+Now with the help of `EitherT` and `Kleisli` we can combine the function again using `andThen`
+
+```Scala
+val extensionOfEmployee: Kleisli[EitherT[Future, MyError, ?], EmployeeId, ExtensionNUm] =
+  Kleisli(departmentOf andThen EitherT) andThen Kleisli(extensionNumOf andThen EitherT)
+```
+
+Ok, that's a bit too much going on to read. We can define some types to simplify it. 
+
+```Scala 
+object MyTypes {
+  // represent a Future[Either[MyError, T]]
+  type Result[T] = EitherT[Future, MyError, T]
+  
+  //represent a Function from A => Result[T]
+  type K[A, B] = Kleisli[Result, A, B]
+}
+```
 
 ## Combine functions with heterogeneous arguments
 
