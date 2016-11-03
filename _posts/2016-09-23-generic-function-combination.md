@@ -102,7 +102,7 @@ object MyTypes {
   type K[A, B] = Kleisli[Result, A, B]
 }
 ```
-Then we can just use these types accross the application.  
+Then we can just use these types accross the application and make our code a lot cleaner. 
 ```Scala
 val departmentOf: K[EmployeeId, DepartmentId]
 val extensionNumOf: K[DepartmentId, ExtensionNum]
