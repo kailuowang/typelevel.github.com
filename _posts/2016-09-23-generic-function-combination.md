@@ -102,8 +102,54 @@ object MyTypes {
   type K[A, B] = Kleisli[Result, A, B]
 }
 ```
+Then we can just use these types accross the application.  
+```Scala
+val departmentOf: K[EmployeeId, DepartmentId]
+val extensionNumOf: K[DepartmentId, ExtensionNum]
+
+val extensionOfEmployee: K[EmployeeId, ExtensionNUm] =
+  departmentOf andThen extensionNumOf
+  
+val budget: K[DepartmentId, Double] 
+val numOfEmployees: K[DepartmentId, Int] 
+val divide: K[(Double, Int), Double]
+
+val budgetPerEmployee: K[DepartmentId, Double]
+  (budget, numOfEmployees) map2 divide
+```
 
 ## Combine functions with heterogeneous arguments
+
+The functions we examined above takes 1 or 2 primitive arguments, they also work nicely together with common argument type and return types. Real-world functions usually has multple heterogeneous arguments. To demonstrate that, let's introduce a more realistic application - The student registration system for HSWW (Hogwarts School of Witchcraft and Wizardry). 
+
+In this application we have several functions providing business logic implementations, each one taking a quite different set of arguments and producing different types of results. 
+
+```Scala
+  def wandService: K[GetWandRequest, Wand]
+  def mentorService: K[AssignMentorRequest, Mentor]
+  def dormService: K[AssignDormRoomRequest, DormRoom]
+
+  //protocols
+  case class GetWandRequest(name: String, address: String)
+  case class AssignMentorRequest(wand: Wand, specialty: Specialty)
+  case class AssignDormRoomRequest(name: String, sex: Sex, mentor: Mentor)
+```
+
+Here we encode the argument signatures into case class definitions, that is each function takes one argument of a case class which has multiple fields. Also we used our `K` type alias, which represents a function with some effects. 
+
+The registration application gets a request of type `Map[String, String]` and needs to return a `Future[Either[Error, RegistrationRecord]]`
+The `RegistrationRecord` is defined as
+```Scala
+case class RegistrationRecord(basicInfo: BasicInfo,
+                                mentor: Mentor, 
+                                dormRoom: DormRoom)
+```
+In which the `mentor` and `dormRoom` should be assigned using the services. 
+The `BasicInfo` is defined as 
+```Scala
+case class BasicInfo(name: String, address: String, age: Int, sex: Sex)
+```
+It is parsed from the `Map[String, String]` request. 
 
 ### generice function combinator 
 
