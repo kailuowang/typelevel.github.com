@@ -1,4 +1,4 @@
-# Generic Function combination with typelevel projects
+# Generic Function combination with libraries from Typelevel
 
 In this post, through some code examples, we'll see how we can take advantage of some typeclasses, data types and generic data structures to help function combinatation. We are not going to get into the implementation detail of functional programming or generic programming, it's merely a tiny demonstration of the power of them in the context of function combintion. 
 
